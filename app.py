@@ -1,26 +1,12 @@
-import sys
 import numpy as np
 from PIL import Image
 import streamlit as st
 
 # ---------------------------------------------------------
-# KERAS 3 / TF-KERAS COMPATIBILITY PATCH
+# KERAS 3 DESERIALIZATION PATCH
 # ---------------------------------------------------------
-# Handles internal module path mismatches between Keras 2 and Keras 3
-try:
-    import keras
-except ImportError:
-    import tensorflow.keras as keras
-
-try:
-    import keras.src.engine.functional as functional
-except ImportError:
-    try:
-        from tensorflow.python.keras.engine import functional
-
-        sys.modules["keras.src.engine.functional"] = functional
-    except Exception:
-        pass
+import keras
+from keras.src.models.functional import Functional
 
 
 # =========================================================
@@ -50,8 +36,14 @@ st.set_page_config(
 
 @st.cache_resource
 def load_model():
-    # Use top-level keras loader to avoid tf.keras internal path errors
-    return keras.models.load_model(MODEL_PATH)
+    # Explicitly map legacy Keras 2 engine paths to Keras 3 Functional class
+    custom_objs = {
+        "Functional": Functional,
+        "keras.src.engine.functional.Functional": Functional,
+    }
+    return keras.models.load_model(
+        MODEL_PATH, custom_objects=custom_objs, compile=False
+    )
 
 
 # =========================================================
