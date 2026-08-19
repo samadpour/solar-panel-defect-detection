@@ -1,32 +1,17 @@
+# Python cache
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
 *.pyd
 
-venv/
-.venv/
-env/
+# Environment
 .env
+venv/
+env/
 
-.ipynb_checkpoints/
-
-.streamlit/secrets.toml
-
-.vscode/
-.idea/
-
-.DS_Store
-Thumbs.db
-
-dataset/
-data/
+# Datasets and heavy output folders
 FINAL_COMPREHENSIVE_RESULTS/
-
-*.xlsx
-*.csv
 *.png
-
-*.tmp
-*.log
-
+*.xlsx
+*.txt
 !threshold.txt
