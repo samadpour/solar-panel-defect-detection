@@ -1,4 +1,4 @@
-```python
+python
 import streamlit as st
 import tensorflow as tf
 import numpy as np
@@ -263,4 +263,3 @@ st.caption(
 st.caption(
     "This tool is intended for research and demonstration purposes."
 )
-```
