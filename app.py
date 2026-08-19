@@ -4,10 +4,10 @@ import streamlit as st
 import tensorflow as tf
 from PIL import Image
 
-# تنظیمات صفحه Streamlit
+# Page configuration
 st.set_page_config(
-    page_title="سیستم تشخیص عیب (Defect Detection)",
-    page_icon="🔍",
+    page_title="Perovskite Defect Inspection",
+    page_icon="🔬",
     layout="centered"
 )
 
@@ -15,7 +15,7 @@ IMG_SIZE = 224
 
 @st.cache_resource
 def load_model_and_threshold():
-    # بازسازی دقیق معماری مدل از کد آموزش
+    # Reconstruct MobileNetV2 architecture
     base = tf.keras.applications.MobileNetV2(
         input_shape=(IMG_SIZE, IMG_SIZE, 3),
         include_top=False,
@@ -29,14 +29,14 @@ def load_model_and_threshold():
 
     model = tf.keras.models.Model(base.input, out)
 
-    # بارگذاری وزن‌های بهترین مدل
+    # Load trained model weights
     weights_path = "best_model_weights.h5"
     if os.path.exists(weights_path):
         model.load_weights(weights_path)
     else:
-        st.error(f"فایل وزن‌ها ({weights_path}) یافت نشد!")
+        st.error(f"Weights file ('{weights_path}') not found!")
 
-    # بارگذاری آستانه بهینه (Threshold)
+    # Load decision threshold
     threshold_path = "threshold.txt"
     threshold = 0.5
     if os.path.exists(threshold_path):
@@ -45,43 +45,58 @@ def load_model_and_threshold():
 
     return model, threshold
 
-# بارگذاری مدل و آستانه
+# Load model and threshold
 model, threshold = load_model_and_threshold()
 
-# رابط کاربری
-st.title("🔍 سیستم هوشمند تشخیص عیب")
-st.write("تصویر مورد نظر را آپلود کنید تا وضعیت آن (**Reference** یا **Defect**) مشخص شود.")
+# Header Section
+st.title("🔬 Automated Defect Inspection System")
+st.write(
+    "Upload a characterization image to evaluate surface defect probability "
+    "and classify device health status."
+)
 
+st.markdown("---")
+
+# File Upload Section
 uploaded_file = st.file_uploader(
-    "انتخاب تصویر...", 
+    "Choose an image...", 
     type=["png", "jpg", "jpeg", "bmp", "tif", "tiff"]
 )
 
 if uploaded_file is not None:
-    # نمایش تصویر آپلود شده
+    # Display Input Image
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="تصویر ورودی", use_container_width=True)
+    st.image(image, caption="Uploaded Characterization Image", use_container_width=True)
 
-    # پیش‌پردازش تصویر دقیقاً مطابق کد آموزش
+    # Image Preprocessing
     img_resized = image.resize((IMG_SIZE, IMG_SIZE))
     img_array = np.array(img_resized, dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
-    # اجرای پیش‌بینی
-    with st.spinner("در حال تحلیل تصویر..."):
+    # Model Inference
+    with st.spinner("Analyzing image features..."):
         prob = float(model.predict(img_array, verbose=0)[0][0])
 
     is_defect = prob > threshold
-    pred_label = "Defect" if is_defect else "Reference"
 
     st.markdown("---")
-    st.subheader("نتیجه ارزیابی:")
+    st.subheader("Evaluation Results")
 
+    # Classification Display
     if is_defect:
-        st.error(f"❌ **نتیجه:** {pred_label}")
+        st.error("⚠️ **Status: Defect Detected**")
+        st.caption("The image exhibits structural/surface abnormalities exceeding the quality threshold.")
     else:
-        st.success(f"✅ **نتیجه:** {pred_label}")
+        st.success("✅ **Status: Healthy (No Defect)**")
+        st.caption("The image passes quality checks with no significant defects detected.")
 
-    st.write(f"**احتمال معیوب بودن (Defect Probability):** `{prob:.4f}`")
-    st.write(f"**آستانه تصمیم‌گیری (Threshold):** `{threshold:.4f}`")
+    # Metric Columns
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(label="Defect Probability", value=f"{prob:.2%}")
+    with col2:
+        st.metric(label="Decision Threshold", value=f"{threshold:.2%}")
+
+    # Visual Gauge Bar
+    st.write("**Probability Score Indicator:**")
     st.progress(prob)
