@@ -1,11 +1,7 @@
 import numpy as np
 from PIL import Image
 import streamlit as st
-
-# Use TensorFlow's native legacy loader to match the weights structure
 import tensorflow as tf
-from tensorflow.keras.models import load_model as tf_load_model
-
 
 # =========================================================
 # CONFIGURATION
@@ -28,14 +24,28 @@ st.set_page_config(
 
 
 # =========================================================
-# LOAD MODEL
+# LOAD MODEL ARCHITECTURE AND WEIGHTS
 # =========================================================
 
 
 @st.cache_resource
 def load_model():
-    # Load using tf.keras native deserializer with compile=False
-    return tf_load_model(MODEL_PATH, compile=False)
+    # 1. Instantiate MobileNetV2 backbone without top classifier
+    base_model = tf.keras.applications.MobileNetV2(
+        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+        include_top=False,
+        weights=None,
+    )
+
+    # 2. Reconstruct the custom classification head
+    x = tf.keras.layers.GlobalAveragePooling2D()(base_model.output)
+    outputs = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+
+    model = tf.keras.Model(inputs=base_model.input, outputs=outputs)
+
+    # 3. Load weights directly (bypasses broken config/JSON deserialization)
+    model.load_weights(MODEL_PATH)
+    return model
 
 
 # =========================================================
@@ -50,7 +60,7 @@ def load_threshold():
 
 
 # =========================================================
-# LOAD MODEL AND THRESHOLD
+# INITIALIZE
 # =========================================================
 
 try:
@@ -134,7 +144,7 @@ if uploaded_file is not None:
 
         img_array = np.asarray(img, dtype=np.float32)
 
-        # Scale intensity values to [0, 1]
+        # Preprocessing scaling [0, 1]
         img_array /= 255.0
 
         # Add batch dimension
