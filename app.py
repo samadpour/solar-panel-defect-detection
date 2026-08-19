@@ -51,7 +51,7 @@ model, threshold = load_model_and_threshold()
 # Header Section
 st.title("🔬 Automated Defect Inspection System")
 st.write(
-    "Upload a characterization image to evaluate surface defect probability "
+    "Upload a characterization image to evaluate defect probability "
     "and classify device health status."
 )
 
