@@ -1,9 +1,11 @@
 import numpy as np
-
-# Use tf_keras to handle Keras 2 serialized architectures (axis=[3] lists)
-import tf_keras as keras
 from PIL import Image
 import streamlit as st
+
+# Use TensorFlow's native legacy loader to match the weights structure
+import tensorflow as tf
+from tensorflow.keras.models import load_model as tf_load_model
+
 
 # =========================================================
 # CONFIGURATION
@@ -32,7 +34,8 @@ st.set_page_config(
 
 @st.cache_resource
 def load_model():
-    return keras.models.load_model(MODEL_PATH, compile=False)
+    # Load using tf.keras native deserializer with compile=False
+    return tf_load_model(MODEL_PATH, compile=False)
 
 
 # =========================================================
@@ -131,7 +134,7 @@ if uploaded_file is not None:
 
         img_array = np.asarray(img, dtype=np.float32)
 
-        # Preprocessing scaled to [0, 1]
+        # Scale intensity values to [0, 1]
         img_array /= 255.0
 
         # Add batch dimension
