@@ -1,6 +1,5 @@
-```text
+text
 streamlit
 tensorflow
 numpy
 pillow
-```
