@@ -1,7 +1,11 @@
+import json
+import os
+import tempfile
+import zipfile
+import keras
 import numpy as np
 from PIL import Image
 import streamlit as st
-import tensorflow as tf
 
 # =========================================================
 # CONFIGURATION
@@ -24,28 +28,52 @@ st.set_page_config(
 
 
 # =========================================================
-# LOAD MODEL ARCHITECTURE AND WEIGHTS
+# HELPER: SANITIZE AND LOAD KERAS 2 MODEL IN KERAS 3
 # =========================================================
+
+
+def sanitize_config(obj):
+    """Recursively patches Keras 2 JSON schema to Keras 3 format."""
+    if isinstance(obj, dict):
+        # 1. Remap legacy engine module paths to models module paths
+        if "module" in obj and isinstance(obj["module"], str):
+            if "engine" in obj["module"]:
+                obj["module"] = obj["module"].replace("engine", "models")
+
+        # 2. Convert BatchNormalization axis from list [3] -> integer 3
+        if obj.get("class_name") == "BatchNormalization" and "config" in obj:
+            axis = obj["config"].get("axis")
+            if isinstance(axis, list) and len(axis) > 0:
+                obj["config"]["axis"] = axis[0]
+
+        return {k: sanitize_config(v) for k, v in obj.items()}
+
+    elif isinstance(obj, list):
+        return [sanitize_config(item) for item in obj]
+
+    return obj
 
 
 @st.cache_resource
 def load_model():
-    # 1. Instantiate MobileNetV2 backbone without top classifier
-    base_model = tf.keras.applications.MobileNetV2(
-        input_shape=(IMG_SIZE, IMG_SIZE, 3),
-        include_top=False,
-        weights=None,
-    )
+    """Patches config.json inside .keras archive and loads the model."""
+    temp_dir = tempfile.gettempdir()
+    patched_path = os.path.join(temp_dir, "patched_model.keras")
 
-    # 2. Reconstruct the custom classification head
-    x = tf.keras.layers.GlobalAveragePooling2D()(base_model.output)
-    outputs = tf.keras.layers.Dense(1, activation="sigmoid")(x)
+    with (
+        zipfile.ZipFile(MODEL_PATH, "r") as zip_in,
+        zipfile.ZipFile(patched_path, "w") as zip_out,
+    ):
+        for item in zip_in.infolist():
+            data = zip_in.read(item.filename)
+            if item.filename == "config.json":
+                config_json = json.loads(data.decode("utf-8"))
+                sanitized_json = sanitize_config(config_json)
+                data = json.dumps(sanitized_json).encode("utf-8")
 
-    model = tf.keras.Model(inputs=base_model.input, outputs=outputs)
+            zip_out.writestr(item, data)
 
-    # 3. Load weights directly (bypasses broken config/JSON deserialization)
-    model.load_weights(MODEL_PATH)
-    return model
+    return keras.models.load_model(patched_path, compile=False)
 
 
 # =========================================================
@@ -144,7 +172,7 @@ if uploaded_file is not None:
 
         img_array = np.asarray(img, dtype=np.float32)
 
-        # Preprocessing scaling [0, 1]
+        # Scale intensity values to [0, 1]
         img_array /= 255.0
 
         # Add batch dimension
