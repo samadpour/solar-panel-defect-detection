@@ -1,13 +1,9 @@
 import numpy as np
+
+# Use tf_keras to handle Keras 2 serialized architectures (axis=[3] lists)
+import tf_keras as keras
 from PIL import Image
 import streamlit as st
-
-# ---------------------------------------------------------
-# KERAS 3 DESERIALIZATION PATCH
-# ---------------------------------------------------------
-import keras
-from keras.src.models.functional import Functional
-
 
 # =========================================================
 # CONFIGURATION
@@ -36,14 +32,7 @@ st.set_page_config(
 
 @st.cache_resource
 def load_model():
-    # Explicitly map legacy Keras 2 engine paths to Keras 3 Functional class
-    custom_objs = {
-        "Functional": Functional,
-        "keras.src.engine.functional.Functional": Functional,
-    }
-    return keras.models.load_model(
-        MODEL_PATH, custom_objects=custom_objs, compile=False
-    )
+    return keras.models.load_model(MODEL_PATH, compile=False)
 
 
 # =========================================================
@@ -142,7 +131,7 @@ if uploaded_file is not None:
 
         img_array = np.asarray(img, dtype=np.float32)
 
-        # Same preprocessing used during validation
+        # Preprocessing scaled to [0, 1]
         img_array /= 255.0
 
         # Add batch dimension
